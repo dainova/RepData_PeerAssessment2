@@ -1,0 +1,238 @@
+getwd()
+setwd("C:/RR/C5")
+dir()
+
+---
+  title: "Peer Assessment 2"
+  Severe weather events exploration using NOAA Storm Database .
+author: "Viktor Mo"
+date: "Thursday, March 18, 2015"
+output: html_document
+---
+  [My github page](https://github.com/dainova/RepData_PeerAssessment2)
+
+<h4>Synopsis</h4>
+
+In this assignment, we analyzed the most harmful nature events using the data of natural events from he U.S. National Oceanic and Atmospheric Administration's (NOAA) storm database. We first read the data and clean up some event types by looking into the cookbook. Then we aggregate the fatality, body injury, property damag, and crop damage by using the aggregate function according to different event types. With data processing and analyzing, we summarized the most harmful events to human health and the events have strongest damage to property and crop by table and figures. The results are tornado, thunderstrom wind, flood, excessive heat are the most harmful events to human health while while flood, hurricane, tornado, storm surge and hail have the most economic consequences.
+
+
+
+<br><br>  
+
+  
+<h4>Data Processing</h4> 
+Here we prepare data, download source file if it's not exsists, check its structure and make sure it loaded correctly:
+```{r}
+data <- read.csv("repdata-data-StormData.csv.bz2")
+
+str(data)
+class(data)
+
+```
+
+  
+
+First we clean our data and analyze Fatality category doing aggregation to decrease number of records to be revised 
+and cleaned:                
+
+```{r}
+trim <- function( x ) {  gsub("(^[[:space:]]+|[[:space:]]+$)", "", x)    }
+
+datax <- data[,c("FATALITIES","INJURIES","EVTYPE","PROPDMG","PROPDMGEXP", "CROPDMGEXP", "CROPDMG")]
+datax$EVTYPE <- trim(datax$EVTYPE)
+datax$EVTYPE <- tolower(datax$EVTYPE)
+head(datax)
+
+
+
+fatal <- aggregate(FATALITIES ~ EVTYPE, data = datax, sum)
+fatalx <- fatal[fatal$FATALITIES > 0, ]
+fatalx <- fatalx[grep('[A-Za-z]+', fatalx$EVTYPE),]
+head(fatalx)
+
+```
+
+After examining _nrow_ intermediate results in _fatalx_ and comparing them with table 2.1.1 in [coocbook](https://d396qusza40orc.cloudfront.net/repdata%2Fpeer2_doc%2Fpd01016005curr.pdf) we noticed that some categories in source document spelled/abbreviated differently so we will take necesseary steps to remap those like specified in document doing manual checking and assighing right Category by intellegent guessing. We put extra column for this for easy tracking which later can be dropped:
+We convert our dataset to _data.table_ to utilize all feature for wild matching
+
+```{r}
+library(data.table)
+fatalx$TYPENEW <- fatalx$EVTYPE
+fatalt <- data.table(fatalx)
+class(fatalt)
+
+head(fatalx)
+
+fatalt[fatalt$EVTYPE  %like% "blizzard",]$TYPENEW = "blizzard"
+
+
+dup1 <- c("thunderstorm wind","thunderstorm wind (g40)","thunderstorm wind g52","thunderstorm winds","thundertorm winds","tstm wind","tstm wind (g35)","tstm wind/hail", "coastal storm","coastalstorm")
+dup2 <- c("wild fires", "wild/forest fire","wildfire")
+dup3 <- c("tropical storm","tropical storm gordon")
+dup4 <- c("wind","winds", "wnd", "tstm wind (g45)")
+dup5 <- c("winter storm","winter storms")
+dup6 <- c("urban and small stream floodin","urban/sml stream fld")
+dup7 <- c("coastal flood","beach erosion/coastal flood","coastal  flooding/erosion","coastal flooding","coastal flooding/erosion","coastal/tidal flood","coastalflood","cstl flooding/erosion","erosion/cstl flood","beach flood","breakup flooding")
+dup8 <- c("avalance","avalanche")
+dup9 <- c("cold/wind chill","cold/winds")
+dup10<- c("high wind","high wind and seas","high wind/seas","high winds","high winds/snow")
+dup11<- c("winter storm","winter storm high winds","winter storms")
+dup12<- c("winter weather","winter weather/mix)")
+
+
+fatalt[fatalt$EVTYPE  %in% dup1, ]$TYPENEW = "thunderstorm wind"
+fatalt[fatalt$EVTYPE  %in% dup2, ]$TYPENEW = "wildfire"
+fatalt[fatalt$EVTYPE  %in% dup3, ]$TYPENEW = "tropical storm"
+fatalt[fatalt$EVTYPE  %in% dup4, ]$TYPENEW = "strong wind"
+fatalt[fatalt$EVTYPE  %in% dup5, ]$TYPENEW = "winter storm"
+fatalt[fatalt$EVTYPE  %in% dup6, ]$TYPENEW = "flood"
+
+fatalt[fatalt$EVTYPE  %in% dup7, ]$TYPENEW = "coastal flood"
+fatalt[fatalt$EVTYPE  %in% dup8, ]$TYPENEW = "avalanche"
+fatalt[fatalt$EVTYPE  %in% dup9, ]$TYPENEW = "cold/wind chill"
+fatalt[fatalt$EVTYPE  %in% dup10, ]$TYPENEW = "high wind"
+fatalt[fatalt$EVTYPE  %in% dup11, ]$TYPENEW = "winter storm"
+fatalt[fatalt$EVTYPE  %in% dup12, ]$TYPENEW = "winter weather"
+
+
+
+```
+After this cleaning we do another round of summary to see if _EVTYPE_ are correct, total number of EVTYPE in coockbook = 48. We go thru several iteration of this step putting more translation in above steps to get right results in sorted order:
+
+```{r}
+nrow(fatalt)
+fatalt <- aggregate(FATALITIES ~ TYPENEW, data = fatalt, sum)
+nrow(fatalt)
+
+max(fatal$FATALITIES)
+mean(fatal$FATALITIES)
+fatalSort <- fatalt[order(fatalt$FATALITIES, decreasing = TRUE), ]
+head(fatalSort)
+```
+<br><br><br>
+
+
+
+
+
+
+Now we do same processign for Injuries:
+First do aggregate to decrease number of records to be revised and clean/remap  column names
+```{r}
+
+injury <- aggregate(INJURIES ~ EVTYPE, data = datax, sum)
+injuryx <- injury[injury$INJURIES > 0, ]
+injuryx <- injuryx[grep('[A-Za-z]+', injuryx$EVTYPE),]
+head(injuryx)
+
+injuryt <- data.table(injuryx)
+
+injuryt[injuryt$EVTYPE  %in% dup1, ]$EVTYPE = "thunderstorm wind"
+injuryt[injuryt$EVTYPE  %in% dup2, ]$EVTYPE = "wildfire"
+injuryt[injuryt$EVTYPE  %in% dup3, ]$EVTYPE = "tropical storm"
+injuryt[injuryt$EVTYPE  %in% dup4, ]$EVTYPE = "strong wind"
+injuryt[injuryt$EVTYPE  %in% dup5, ]$EVTYPE = "winter storm"
+injuryt[injuryt$EVTYPE  %in% dup6, ]$EVTYPE = "flood"
+
+injuryt[injuryt$EVTYPE  %in% dup7, ]$EVTYPE = "coastal flood"
+injuryt[injuryt$EVTYPE  %in% dup8, ]$EVTYPE = "avalanche"
+injuryt[injuryt$EVTYPE  %in% dup9, ]$EVTYPE = "cold/wind chill"
+injuryt[injuryt$EVTYPE  %in% dup10, ]$EVTYPE = "high wind"
+injuryt[injuryt$EVTYPE  %in% dup11, ]$EVTYPE = "winter storm"
+injuryt[injuryt$EVTYPE  %in% dup12, ]$EVTYPE = "winter weather"
+head(injuryt)
+
+
+injurySort <- injuryt[order(injuryt$INJURIES, decreasing = TRUE), ]
+head(injurySort)
+```
+
+<br><br>
+
+
+<h4>Display results</h4>
+Now we going to  visualize  our results using basic plots for total numbers side by side.
+For Fatalities and Injuries, note that Tornado is main reason for both:
+
+```{r}
+
+barplot (height = fatalSort$FATALITIES[1:20], names.arg = fatalSort$TYPENEW[1:20], las = 2, col = 1:20)
+title (main = "Events caused most Fatalities", line=-1)
+title (ylab = "Fatalities")
+```
+
+```{r}
+barplot (height = injurySort$INJURIES[1:20], names.arg = injurySort$EVTYPE[1:20], las = 2,  col = 1:20)
+title (main = "Events caused most Injuries", line=-1)
+title (ylab = "Injuries")
+
+```
+<br>
+<br>
+
+
+
+Now we examine and display damage effect on Property and Crop  sector by each of events in top 20.
+```{r}
+head(datax)
+unique(datax$PROPDMGEXP)
+unique(datax$CROPDMGEXP)
+
+symbol <- c("", "+", "-", "?", 0:9, "h", "H", "k", "K", "m", "M", "b", "B");
+factor <- c(rep(0,4), 0:9, 2, 2, 3, 3, 6, 6, 9, 9)
+df <- data.frame (symbol, factor)
+
+
+datax$damage.prop <- datax$PROPDMG*10^df[match(datax$PROPDMGEXP,df$symbol),2]
+datax$damage.crop <- datax$CROPDMG*10^df[match(datax$CROPDMGEXP,df$symbol),2]
+datax$damage <- datax$damage.prop + datax$damage.crop
+
+sum(is.na(datax$CROPDMG & datax$PROPDMG))
+datax[is.na(datax$CROPDMG | datax$PROPDMG)] <- 0
+head(datax)
+
+damage <- aggregate (damage~EVTYPE, datax, sum);
+
+damage$bilion <- round((damage$damage / 1000000000),digits=1);
+damage <- damage [order(damage$bilion, decreasing=TRUE),]
+head(damage)
+
+labels <- damage$EVTYPE[1:20]
+par(mar=c(12, 6, 1, 1))
+end_point <- 39.5
+
+par(mar=c(12, 6, 1, 1))
+mp <- 
+  barplot (height = damage$bilion[1:20], main = "Events caused most damage to Property and Crop ",
+               xlab = "", space=1, col = 1:20)
+title (ylab = "Damage (in bilion)")              
+
+text(seq(1.5,end_point,by=2), par("usr")[3]-0.25, 
+     srt = 45, adj= 1, xpd = TRUE,
+     labels = labels, cex=0.65)
+
+```
+<br>
+
+To see exact breakdown numbers for Properties and Crop and for  training purposes we display top 10 events using following calculations:
+
+```{r}
+damage2 <- aggregate (cbind(damage.prop, damage.crop)~EVTYPE, datax, sum);
+damage2 <- damage2[grep('[A-Za-z]+', damage2$EVTYPE),]
+str(damage2)
+head(damage2)
+
+
+# 10 events caused most Property damage
+prop10 <- head(damage2[order(damage2$damage.prop, decreasing = TRUE), ],10)
+prop10$Index <- 1:nrow(prop10)
+prop10[,c(4,1,2,3)]
+
+
+# 10 events caused most Crop damage
+crop10 <- head(damage2[order(damage2$damage.crop, decreasing = TRUE), ],10)
+crop10$Index <- 1:nrow(crop10)
+crop10[,c(4,1,3,2)]
+
+```
+
